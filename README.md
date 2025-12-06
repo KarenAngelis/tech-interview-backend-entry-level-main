@@ -208,3 +208,5 @@ Clean code / legibilidade:
 Controllers pequenos, empurrando regras de negócio para o model Cart;
 Uso de factories (FactoryBot) para construção de objetos em testes;
 Métodos privados no controller para validações e tratamento de erros.
+
+Autora: Karen Angelis

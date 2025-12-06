@@ -1,0 +1,84 @@
+services:
+  db:
+    # Boas Práticas: Usa a versão específica do desafio (postgres 16)
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      # Corrigido: Usando a sintaxe de mapa (dictionary) para o ambiente
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: myapp_development
+    ports:
+      - "5432:5432"
+    volumes:
+      # Corrigido o nome do volume
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck: # Boa Prática: Garante que o DB esteja pronto para conexões
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    # Boas Práticas: Usa a versão específica do desafio (redis 7.0.15)
+    image: redis:7.0.15-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      # Corrigido o nome do volume
+      - redis_data:/data 
+    healthcheck: # Boa Prática: Verifica se o Redis está vivo
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+
+  web:
+    # Corrigido: Serviço principal (Servidor Rails) completo
+    build: .
+    working_dir: /rails
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mapeamento do código local para o container
+      - .:/rails
+    depends_on: # Boa Prática: Espera os serviços estarem saudáveis/iniciados
+      db:
+        condition: service_healthy 
+      redis:
+        condition: service_started
+    
+    # Boa Prática: Usa script de entrada para gerenciar migrações
+    entrypoint: ["./docker-entrypoint.sh"] 
+    command: ["bundle", "exec", "rails", "server", "-b", "0.0.0.0", "-p", "3000"]
+    
+    environment:
+      DATABASE_URL: postgresql://postgres:password@db:5432/myapp_development
+      REDIS_URL: redis://redis:6379/0
+
+  test:
+    build: .
+    working_dir: /rails
+    # Usa o mesmo script de entrada para garantir que o DB de teste seja criado
+    entrypoint: ["./docker-entrypoint.sh"] 
+    command: ["bundle", "exec", "rspec"]
+    
+    volumes:
+      - .:/rails
+    depends_on:
+      db:
+        condition: service_healthy # Espera o DB estar saudável
+      redis:
+        condition: service_started
+    
+    environment:
+      # 🔑 CORRIGIDO: Sintaxe correta de mapa (dictionary) para ambiente
+      RAILS_ENV: test
+      DATABASE_URL: postgresql://postgres:password@db:5432/myapp_test
+      REDIS_URL: redis://redis:6379/0
+
+volumes:
+  postgres_data: # Corrigido o nome do volume
+  redis_data:    # Corrigido o volume faltante
